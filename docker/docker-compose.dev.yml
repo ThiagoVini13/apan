@@ -1,0 +1,45 @@
+services:
+
+  # Backend
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend
+      target: builder
+    container_name: apan-backend-dev
+    restart: unless-stopped
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      - ../backend/app:/app/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    env_file:
+      - ../.env
+    ports:
+      - "8000:8000"
+    networks:
+      - apan-network-dev
+
+  # Frontend
+  frontend:
+    image: node:22-alpine
+    container_name: apan-frontend-dev
+    working_dir: /app
+    command: npm run dev -- --host 0.0.0.0
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://backend:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - apan-network-dev
+
+networks:
+  apan-network-dev:
+    driver: bridge
+

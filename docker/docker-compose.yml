@@ -1,0 +1,42 @@
+services:
+
+  # Backend
+  backend:
+    build:
+      context: ../backend          # relativo a docker/
+      dockerfile: ../docker/Dockerfile.backend
+    container_name: apan-backend
+    restart: unless-stopped
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    env_file:
+      - ../.env                    # relativo a docker/
+    networks:
+      - apan-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend
+  frontend:
+    build:
+      context: ../frontend         # relativo a docker/
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: apan-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - apan-network
+
+networks:
+  apan-network:
+    driver: bridge
+
