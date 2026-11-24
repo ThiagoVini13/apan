@@ -3,8 +3,8 @@ services:
   # Backend
   backend:
     build:
-      context: ../backend
-      dockerfile: ../docker/Dockerfile.backend
+      context: ..
+      dockerfile: docker/Dockerfile.backend
       target: builder
     container_name: apan-backend-dev
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
     image: node:22-alpine
     container_name: apan-frontend-dev
     working_dir: /app
-    command: npm run dev -- --host 0.0.0.0
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     volumes:
       - ../frontend:/app
       - /app/node_modules

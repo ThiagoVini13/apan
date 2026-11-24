@@ -41,7 +41,7 @@ def list_students(
         students = [s for s in students if q_lower in s["full_name"].lower()]
     if class_id:
         students = [s for s in students if s["class_id"] == class_id]
-    items = [_to_out(s) for s in students]
+    items = [_to_out(s, with_rate=True) for s in students]
     return StudentListOut(items=items, total=len(items))
 
 
