@@ -165,18 +165,27 @@ data. O professor registra só as disciplinas que leciona na turma, até
 
 ### Frontend (React + TypeScript)
 
-**Pré-requisitos:** Node.js 18+
+**Pré-requisitos:** Node.js 22 (ou Docker, veja abaixo).
 
 ```bash
 cd frontend
-
-# Instalar dependências
 npm install
-
-# Iniciar servidor de desenvolvimento
-npm run dev
+npm run dev          # http://localhost:5173 (proxy de /api → http://localhost:8000)
 ```
 
-Frontend disponível em: http://localhost:5173
+| Comando | O que faz |
+|---|---|
+| `npm run lint` | ESLint (inclui `jsx-a11y` estrito e as regras de import entre features) |
+| `npm run type-check` | TypeScript estrito |
+| `npm test` | Vitest + Testing Library + MSW + axe (temas claro e escuro) |
+| `npm run build` | Type-check e build de produção |
+| `npm run api:types` | Regenera `src/shared/api/schema.d.ts` a partir de `backend/openapi.json` |
 
-> O Vite faz proxy de `/api/*` → `http://localhost:8000` em dev, então não há problemas de CORS.
+Sem Node instalado, rode os mesmos comandos num contêiner (o `node_modules` fica num
+volume Docker):
+
+```bash
+docker run --rm -it -v "$PWD:/repo" -v apan-frontend-node-modules:/repo/frontend/node_modules   -w /repo/frontend node:22-alpine npm test
+```
+
+Quando a API mudar: `make openapi` no backend e depois `npm run api:types` no frontend.

@@ -1,201 +1,273 @@
-import { useState } from 'react'
-import { useStudents, useCreateStudent } from '@/features/students/api/students.queries'
-import { useClasses } from '@/features/classes/api/classes.queries'
-import { StatusPill } from '@/shared/ui/StatusPill'
-import type { StudentCreateInput } from '@/shared/types'
+import { useState, type FormEvent } from 'react'
+import { Link, Outlet, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { useClassOptions, useCurrentSchoolYear } from '@/shared/api/reference'
+import type { Student } from '@/shared/api/types'
+import { useDocumentTitle } from '@/shared/hooks/useDocumentTitle'
+import { useSearchParamsState } from '@/shared/hooks/useSearchParamsState'
+import { cn } from '@/shared/lib/cn'
+import { calculateAge, todayIso } from '@/shared/lib/date'
+import { formatDate } from '@/shared/lib/format'
+import { shiftLabels } from '@/shared/lib/labels'
+import { useCurrentUser } from '@/shared/session/session'
+import { AttendanceRateBadge, Badge } from '@/shared/ui/Badge'
+import { Button } from '@/shared/ui/Button'
+import { buttonVariants } from '@/shared/ui/button-variants'
+import { Field, Input, Select } from '@/shared/ui/Field'
+import { ArchiveIcon, PencilIcon, PlusIcon, SearchIcon } from '@/shared/ui/icons'
+import { Card, PageHeader, TableContainer } from '@/shared/ui/Layout'
+import { tableClasses } from '@/shared/ui/table'
+import { Pagination } from '@/shared/ui/Pagination'
+import { EmptyState, ErrorState, LoadingList } from '@/shared/ui/States'
+import { useStudentRates, useStudents } from '../api/students.queries'
+import { StudentCreateDialog } from '../components/StudentCreateDialog'
+import { StudentEditDialog } from '../components/StudentEditDialog'
 
-const EMPTY_FORM: StudentCreateInput = {
-  fullName: '',
-  enrollmentNumber: '',
-  classId: '',
-  birthDate: '',
+const KEYS = ['q', 'classId', 'archived', 'page'] as const
+
+function useCloseToList() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  return () => navigate({ pathname: '/students', search: location.search })
+}
+
+export function StudentCreateRoute() {
+  const close = useCloseToList()
+  const [params] = useSearchParamsState(KEYS)
+  return <StudentCreateDialog defaultClassId={params.classId || undefined} onClose={close} />
+}
+
+export function StudentEditRoute() {
+  const { studentId } = useParams()
+  const close = useCloseToList()
+  return studentId ? <StudentEditDialog studentId={studentId} onClose={close} /> : null
 }
 
 export default function StudentsPage() {
-  const [search,      setSearch]     = useState('')
-  const [classFilter, setClassFilter] = useState('all')
-  const [showForm,    setShowForm]   = useState(false)
-  const [form,        setForm]       = useState<StudentCreateInput>(EMPTY_FORM)
+  useDocumentTitle('Alunos')
+  const user = useCurrentUser()
+  const location = useLocation()
+  const [params, setParams] = useSearchParamsState(KEYS)
+  const [search, setSearch] = useState(params.q)
+  const page = Number(params.page) || 1
 
-  const { data: classesData } = useClasses()
-  const classes = classesData?.items ?? []
+  const classes = useClassOptions()
+  const year = useCurrentSchoolYear()
+  const filters = {
+    q: params.q || undefined,
+    classId: params.classId || undefined,
+    includeArchived: params.archived === '1' || undefined,
+    page,
+  }
+  const students = useStudents(filters)
+  const today = todayIso()
+  const rates = useStudentRates(
+    year.data
+      ? { from: year.data.startsOn, to: today < year.data.endsOn ? today : year.data.endsOn }
+      : null,
+  )
+  const classNames = new Map(
+    classes.data?.map((c) => [c.id, `${c.name} · ${shiftLabels[c.shift]}`]),
+  )
 
-  const { data, isPending, isError } = useStudents({
-    q:       search || undefined,
-    classId: classFilter !== 'all' ? classFilter : undefined,
-  })
-
-  const createStudent = useCreateStudent()
-
-  const defaultClassId = classes[0]?.id ?? ''
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    createStudent.mutate(
-      { ...form, classId: form.classId || defaultClassId },
-      {
-        onSuccess: () => {
-          setForm(EMPTY_FORM)
-          setShowForm(false)
-        },
-      },
-    )
+  function handleSearch(event: FormEvent) {
+    event.preventDefault()
+    setParams({ q: search.trim() })
   }
 
+  const editLink = (student: Student) => ({
+    pathname: `${student.id}/edit`,
+    search: location.search,
+  })
+
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-slate-800">Alunos</h1>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
-        >
-          {showForm ? 'Cancelar' : '+ Novo Aluno'}
-        </button>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Alunos"
+        actions={
+          <Link to={{ pathname: 'new', search: location.search }} className={buttonVariants()}>
+            <PlusIcon className="size-4" />
+            Novo aluno
+          </Link>
+        }
+      />
 
-      {/* New student form */}
-      {showForm && (
+      <Card aria-label="Filtros de alunos">
         <form
-          onSubmit={handleSubmit}
-          className="rounded-xl border border-blue-200 bg-blue-50 p-5 space-y-4"
+          onSubmit={handleSearch}
+          className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
         >
-          <h2 className="text-sm font-semibold text-slate-700">Novo Aluno</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Nome completo</label>
-              <input
-                required
-                type="text"
-                value={form.fullName}
-                onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="Nome do aluno"
+          <Field label="Buscar por nome ou matrícula">
+            {(props) => (
+              <Input
+                {...props}
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
               />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Matrícula</label>
-              <input
-                required
-                type="text"
-                value={form.enrollmentNumber}
-                onChange={(e) => setForm((f) => ({ ...f, enrollmentNumber: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                placeholder="2026016"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Data de nascimento</label>
-              <input
-                type="date"
-                value={form.birthDate ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, birthDate: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Turma</label>
-              <select
-                value={form.classId || defaultClassId}
-                onChange={(e) => setForm((f) => ({ ...f, classId: e.target.value }))}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            )}
+          </Field>
+          <Field label="Turma">
+            {(props) => (
+              <Select
+                {...props}
+                value={params.classId}
+                onChange={(event) => setParams({ classId: event.target.value })}
               >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                <option value="">Todas as turmas</option>
+                {classes.data?.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {classNames.get(c.id)}
+                  </option>
                 ))}
-              </select>
-            </div>
-          </div>
-          {createStudent.isError && (
-            <p className="text-xs text-red-600">Erro ao salvar. Verifique os dados e tente novamente.</p>
+              </Select>
+            )}
+          </Field>
+          <Button type="submit" variant="secondary">
+            <SearchIcon className="size-4" />
+            Buscar
+          </Button>
+          {user.role === 'admin' && (
+            <label className="flex min-h-11 items-center gap-2 text-sm text-fg sm:col-span-3">
+              <input
+                type="checkbox"
+                className="size-5 accent-primary"
+                checked={params.archived === '1'}
+                onChange={(event) => setParams({ archived: event.target.checked ? '1' : null })}
+              />
+              Mostrar alunos arquivados
+            </label>
           )}
-          <button
-            type="submit"
-            disabled={createStudent.isPending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-          >
-            {createStudent.isPending ? 'Salvando...' : 'Salvar Aluno'}
-          </button>
         </form>
-      )}
+      </Card>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <input
-          type="text"
-          placeholder="Buscar por nome..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-56"
+      <p role="status" aria-live="polite" className="text-sm text-fg-muted">
+        {students.data && `${students.data.total} aluno(s) encontrado(s)`}
+      </p>
+
+      {students.isPending && <LoadingList label="Carregando alunos…" />}
+      {students.isError && <ErrorState error={students.error} onRetry={() => students.refetch()} />}
+      {students.data?.items.length === 0 && (
+        <EmptyState
+          title="Nenhum aluno encontrado"
+          description={
+            params.q || params.classId
+              ? 'Tente mudar a busca ou a turma.'
+              : 'Cadastre o primeiro aluno.'
+          }
         />
-        <select
-          value={classFilter}
-          onChange={(e) => setClassFilter(e.target.value)}
-          className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        >
-          <option value="all">Todas as turmas</option>
-          {classes.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Students table */}
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
-            <tr>
-              <th className="px-4 py-3 text-left font-medium">Matrícula</th>
-              <th className="px-4 py-3 text-left font-medium">Nome</th>
-              <th className="px-4 py-3 text-left font-medium">Turma</th>
-              <th className="px-4 py-3 text-left font-medium">Frequência</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {isPending && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400 animate-pulse">
-                  Carregando alunos...
-                </td>
-              </tr>
-            )}
-            {isError && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-red-500 text-sm">
-                  Erro ao carregar alunos.
-                </td>
-              </tr>
-            )}
-            {!isPending && !isError && data?.items.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
-                  Nenhum aluno encontrado.
-                </td>
-              </tr>
-            )}
-            {data?.items.map((student) => {
-              const cls = classes.find((c) => c.id === student.classId)
-              return (
-                <tr key={student.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3 text-slate-500">{student.enrollmentNumber}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800">{student.fullName}</td>
-                  <td className="px-4 py-3 text-slate-600">{cls?.name ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    {student.attendanceRate != null
-                      ? <StatusPill rate={student.attendanceRate} />
-                      : <span className="text-slate-400 text-xs">Sem chamadas</span>
-                    }
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {data && (
-        <p className="text-xs text-slate-400">{data.total} aluno(s) encontrado(s)</p>
       )}
+
+      {students.data && students.data.items.length > 0 && (
+        <>
+          <div className="hidden lg:block">
+            <TableContainer label="Lista de alunos">
+              <table className={tableClasses.table}>
+                <thead className={tableClasses.head}>
+                  <tr>
+                    <th scope="col" className={tableClasses.th}>
+                      Nome
+                    </th>
+                    <th scope="col" className={tableClasses.th}>
+                      Matrícula
+                    </th>
+                    <th scope="col" className={tableClasses.th}>
+                      Turma
+                    </th>
+                    <th scope="col" className={tableClasses.th}>
+                      Nascimento
+                    </th>
+                    <th scope="col" className={tableClasses.th}>
+                      Frequência no ano
+                    </th>
+                    <th scope="col" className={tableClasses.th}>
+                      <span className="sr-only">Ações</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {students.data.items.map((student) => (
+                    <tr key={student.id} className={tableClasses.row}>
+                      <td className={cn(tableClasses.td, 'font-medium')}>
+                        {student.fullName}
+                        {student.archivedAt && (
+                          <Badge
+                            tone="warning"
+                            icon={<ArchiveIcon className="size-3.5" />}
+                            className="ml-2"
+                          >
+                            Arquivado
+                          </Badge>
+                        )}
+                      </td>
+                      <td className={cn(tableClasses.td, 'tabular-nums')}>
+                        {student.enrollmentNumber}
+                      </td>
+                      <td className={tableClasses.td}>
+                        {student.currentClassId
+                          ? (classNames.get(student.currentClassId) ?? '—')
+                          : 'Sem turma'}
+                      </td>
+                      <td className={cn(tableClasses.td, 'tabular-nums')}>
+                        {formatDate(student.birthDate)} ({calculateAge(student.birthDate)} anos)
+                      </td>
+                      <td className={tableClasses.td}>
+                        <AttendanceRateBadge rate={rates.data?.get(student.id)} />
+                      </td>
+                      <td className={cn(tableClasses.td, 'text-right')}>
+                        <Link
+                          to={editLink(student)}
+                          aria-label={`Editar ${student.fullName}`}
+                          className={buttonVariants({ variant: 'ghost' })}
+                        >
+                          <PencilIcon className="size-4" />
+                          Editar
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableContainer>
+          </div>
+
+          <ul className="flex flex-col gap-3 lg:hidden">
+            {students.data.items.map((student) => (
+              <li key={student.id} className="rounded-xl border border-line bg-surface p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-fg">{student.fullName}</p>
+                    <p className="text-sm text-fg-muted tabular-nums">
+                      Matrícula {student.enrollmentNumber} ·{' '}
+                      {student.currentClassId
+                        ? (classNames.get(student.currentClassId) ?? '—')
+                        : 'Sem turma'}
+                    </p>
+                    <p className="text-sm text-fg-muted">{calculateAge(student.birthDate)} anos</p>
+                  </div>
+                  <AttendanceRateBadge rate={rates.data?.get(student.id)} />
+                </div>
+                <Link
+                  to={editLink(student)}
+                  aria-label={`Editar ${student.fullName}`}
+                  className={cn(buttonVariants({ variant: 'secondary' }), 'mt-3 w-full')}
+                >
+                  <PencilIcon className="size-4" />
+                  Editar
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <Pagination
+            page={page}
+            pageSize={students.data.pageSize}
+            total={students.data.total}
+            onPageChange={(next) => setParams({ page: String(next) }, { resetPage: false })}
+          />
+        </>
+      )}
+
+      <Outlet />
     </div>
   )
 }

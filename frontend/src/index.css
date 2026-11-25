@@ -1,11 +1,110 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  color-scheme: light;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --surface-muted: #f8fafc;
+  --line: #e2e6ec;
+  --line-strong: #808a99;
+  --fg: #14181f;
+  --fg-muted: #4b5563;
+  --primary: #1a56db;
+  --primary-hover: #1646b4;
+  --primary-fg: #ffffff;
+  --primary-text: #1a56db;
+  --primary-bg: #e8effc;
+  --success: #057a55;
+  --success-bg: #e6f4ec;
+  --danger: #c81e1e;
+  --danger-bg: #fdecec;
+  --warning: #b84300;
+  --warning-bg: #fdf0e6;
+  --focus-ring: #1a56db;
+  --chart-1: #1a56db;
+  --chart-2: #057a55;
+  --chart-3: #c81e1e;
 }
 
-body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
+.dark {
+  color-scheme: dark;
+  --bg: #0f141b;
+  --surface: #171d26;
+  --surface-muted: #1d2430;
+  --line: #2a3340;
+  --line-strong: #6b7686;
+  --fg: #e8ecf2;
+  --fg-muted: #a3adbb;
+  --primary: #2f6fed;
+  --primary-hover: #2459d1;
+  --primary-fg: #ffffff;
+  --primary-text: #8ab4ff;
+  --primary-bg: #16233b;
+  --success: #4ade9b;
+  --success-bg: #0f2a20;
+  --danger: #ff8a8a;
+  --danger-bg: #301616;
+  --warning: #ffb27a;
+  --warning-bg: #33210f;
+  --focus-ring: #8ab4ff;
+  --chart-1: #8ab4ff;
+  --chart-2: #4ade9b;
+  --chart-3: #ff8a8a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-fg: var(--primary-fg);
+  --color-primary-text: var(--primary-text);
+  --color-primary-bg: var(--primary-bg);
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-focus-ring: var(--focus-ring);
+  --font-sans: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html {
+    /* The fixed roll call footer and the mobile bottom bar must not hide focused fields. */
+    scroll-padding-bottom: 7rem;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
