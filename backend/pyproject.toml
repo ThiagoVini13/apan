@@ -1,36 +1,122 @@
 [project]
 name = "apan-backend"
 version = "0.1.0"
-description = "APAN Backend API using FastAPI"
-requires-python = ">=3.12"
+description = "APAN school attendance API"
+requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
-    "pydantic>=2.0.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "structlog>=24.4.0",
+    "redis>=5.2.0",
+    "uuid-utils>=0.10.0",
+    "pwdlib[argon2]>=0.2.1",
+    "pyjwt>=2.10.0",
+    "typer>=0.15.0",
+    "email-validator>=2.2.0",
+    "tzdata>=2024.1",
+    "xlsxwriter>=3.2.0",
 ]
 
-[project.optional-dependencies]
+[project.scripts]
+apan = "apan.cli:app"
+
+[dependency-groups]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "httpx>=0.27.0",
-    "ruff>=0.4.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+    "testcontainers[postgres,redis]>=4.9.0",
+    "polyfactory>=2.18.0",
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "import-linter>=2.1",
+    "pip-audit>=2.7.0",
 ]
-
-[tool.hatch.build.targets.wheel]
-packages = ["app"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/apan"]
+
+[tool.uv]
+package = true
+
+# --------------------------------------------------------------------------- ruff
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py313"
+src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W"]
+select = ["E", "F", "I", "UP", "B", "S", "ASYNC", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "S105", "S106"]
+# Error handlers narrow the exception type Starlette hands them.
+"src/apan/core/error_handlers.py" = ["S101"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["apan"]
+
+# --------------------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+files = ["src", "tests", "migrations", "scripts"]
+
+[[tool.mypy.overrides]]
+module = ["testcontainers.*", "xlsxwriter.*"]
+ignore_missing_imports = true
+
+# --------------------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = ["integration: needs Docker (PostgreSQL and Redis containers)"]
 
+# --------------------------------------------------------------------------- import-linter
+[tool.importlinter]
+root_package = "apan"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "core does not depend on modules"
+type = "forbidden"
+source_modules = ["apan.core"]
+forbidden_modules = ["apan.modules", "apan.main"]
+
+[[tool.importlinter.contracts]]
+name = "module layers: router -> service -> repository -> models"
+type = "layers"
+containers = [
+    "apan.modules.audit",
+    "apan.modules.auth",
+    "apan.modules.classes",
+    "apan.modules.dashboard",
+    "apan.modules.enrollments",
+    "apan.modules.health",
+    "apan.modules.reports",
+    "apan.modules.roll_calls",
+    "apan.modules.school_years",
+    "apan.modules.students",
+    "apan.modules.subjects",
+    "apan.modules.users",
+]
+layers = ["(router)", "(service)", "(repository)", "(models)"]
+
+[[tool.importlinter.contracts]]
+name = "services do not depend on the web framework"
+type = "forbidden"
+source_modules = ["apan.modules.*.service"]
+forbidden_modules = ["fastapi", "starlette"]

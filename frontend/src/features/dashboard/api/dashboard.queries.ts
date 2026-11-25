@@ -1,14 +1,16 @@
 import { useQuery } from '@tanstack/react-query'
-import { api } from '@/shared/lib/api'
-import type { DashboardToday } from '@/shared/types'
+import { queryRoots } from '@/shared/api/query-roots'
+import type { DashboardToday } from '@/shared/api/types'
+import { http } from '@/shared/lib/http'
 
 export const dashboardKeys = {
-  today: ['dashboard', 'today'] as const,
+  all: queryRoots.dashboard,
+  today: () => [...dashboardKeys.all, 'today'] as const,
 }
 
 export function useDashboardToday() {
   return useQuery({
-    queryKey: dashboardKeys.today,
-    queryFn: () => api.get<DashboardToday>('/dashboard/today'),
+    queryKey: dashboardKeys.today(),
+    queryFn: () => http.get<DashboardToday>('dashboard/today'),
   })
 }

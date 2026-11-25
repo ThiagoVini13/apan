@@ -1,37 +1,27 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api } from '@/shared/lib/api'
-import type { RollCallList, RollCall, RollCallUpsertInput } from '@/shared/types'
-import { dashboardKeys } from '@/features/dashboard/api/dashboard.queries'
-import { studentsKeys } from '@/features/students/api/students.queries'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryRoots } from '@/shared/api/query-roots'
+import type { SheetParams } from '../types'
+import { rollCallApi } from './roll-call.api'
+import { rollCallKeys } from './roll-call.keys'
 
-export const rollCallsKeys = {
-  all: ['roll-calls'] as const,
-  list: (filters: { classId?: string; date?: string }) =>
-    [...rollCallsKeys.all, 'list', filters] as const,
-  detail: (id: string) => [...rollCallsKeys.all, 'detail', id] as const,
-}
-
-export function useRollCalls(filters: { classId?: string; date?: string } = {}) {
-  const params = new URLSearchParams()
-  if (filters.classId) params.set('class_id', filters.classId)
-  if (filters.date) params.set('date', filters.date)
-  const qs = params.toString() ? `?${params.toString()}` : ''
-
+export function useRollCallSheet(params: SheetParams | null) {
   return useQuery({
-    queryKey: rollCallsKeys.list(filters),
-    queryFn: () => api.get<RollCallList>(`/roll-calls${qs}`),
-    enabled: Boolean(filters.classId),
+    queryKey: rollCallKeys.sheet(params ?? { classId: '', subjectId: '', date: '' }),
+    queryFn: () => rollCallApi.sheet(params as SheetParams),
+    enabled: params !== null,
   })
 }
 
 export function useSaveRollCall() {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (data: RollCallUpsertInput) => api.put<RollCall>('/roll-calls', data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: rollCallsKeys.all })
-      qc.invalidateQueries({ queryKey: dashboardKeys.today })
-      qc.invalidateQueries({ queryKey: studentsKeys.all })
-    },
+    mutationFn: rollCallApi.save,
+    onSuccess: () =>
+      Promise.all(
+        [queryRoots.rollCalls, queryRoots.dashboard, queryRoots.reports, queryRoots.students].map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey }),
+        ),
+      ),
+    meta: { handlesErrors: true },
   })
 }
