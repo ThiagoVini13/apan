@@ -1,13 +1,14 @@
 import pytest
 from pydantic import ValidationError
 
-from apan.core.config import Environment
+from apan.core.config import DEV_SECRET_KEY, Environment
 from tests.conftest import make_settings
 
 
-def test_production_rejects_default_secret_key() -> None:
+@pytest.mark.parametrize("secret_key", [DEV_SECRET_KEY, "change-me-in-production"])
+def test_production_rejects_default_secret_key(secret_key: str) -> None:
     with pytest.raises(ValidationError, match="SECRET_KEY"):
-        make_settings(app_env=Environment.PRODUCTION)
+        make_settings(app_env=Environment.PRODUCTION, secret_key=secret_key)
 
 
 def test_production_rejects_short_secret_key() -> None:

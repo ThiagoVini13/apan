@@ -25,10 +25,12 @@ class AppError(Exception):
         *,
         code: str | None = None,
         field_errors: list[FieldError] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self.code = code or self.default_code
         self.detail = detail or self.title
         self.field_errors = field_errors or []
+        self.headers = headers or {}
         super().__init__(self.detail)
 
 

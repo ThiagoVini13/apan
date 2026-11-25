@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from httpx import AsyncClient
 
-from apan.core.pagination import Page, PageParams, PageParamsDep
+from apan.core.dependencies import PageParamsDep
+from apan.core.pagination import Page, PageParams
 
 
 def test_offset_and_limit() -> None:

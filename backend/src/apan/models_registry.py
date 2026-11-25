@@ -2,6 +2,6 @@
 
 
 def load_models() -> None:
-    # Each database-backed module adds its import here, e.g.:
-    # import apan.modules.users.models
-    return None
+    import apan.modules.audit.models
+    import apan.modules.auth.models
+    import apan.modules.users.models  # noqa: F401

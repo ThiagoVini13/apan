@@ -63,6 +63,7 @@ async def _app_error(request: Request, exc: Exception) -> JSONResponse:
         detail=exc.detail,
         title=exc.title,
         field_errors=exc.field_errors,
+        headers=exc.headers or None,
     )
 
 

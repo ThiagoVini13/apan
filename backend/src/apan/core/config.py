@@ -6,7 +6,8 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from sqlalchemy import URL
 
-INSECURE_SECRET_KEYS = frozenset({"", "change-me", "change-me-in-production"})
+DEV_SECRET_KEY = "dev-only-insecure-secret-key-do-not-use-in-production"  # noqa: S105
+INSECURE_SECRET_KEYS = frozenset({"", "change-me", "change-me-in-production", DEV_SECRET_KEY})
 
 
 class Environment(StrEnum):
@@ -24,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     app_env: Environment = Environment.DEVELOPMENT
-    secret_key: SecretStr = SecretStr("change-me")
+    secret_key: SecretStr = SecretStr(DEV_SECRET_KEY)
     log_level: str = "INFO"
 
     postgres_host: str = "localhost"
@@ -41,7 +42,28 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
 
+    # Origins allowed by CORS and by the CSRF Origin check on cookie endpoints.
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:5173"]
+    # Public URL of the SPA, used in e-mail links.
+    frontend_url: str = "http://localhost:5173"
+
+    jwt_issuer: str = "apan-api"
+    jwt_audience: str = "apan-web"
+    access_token_ttl_minutes: int = Field(default=15, ge=1, le=60)
+    refresh_token_ttl_days: int = Field(default=7, ge=1)
+    refresh_token_absolute_ttl_days: int = Field(default=30, ge=1)
+    refresh_cookie_secure: bool = True
+    password_reset_ttl_minutes: int = Field(default=30, ge=5)
+    invite_ttl_hours: int = Field(default=72, ge=1)
+    login_max_failed_attempts: int = Field(default=5, ge=1)
+    login_lockout_minutes: int = Field(default=15, ge=1)
+
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_starttls: bool = False
+    mail_from: str = "APAN <nao-responda@localhost>"
 
     @field_validator("cors_origins", mode="before")
     @classmethod

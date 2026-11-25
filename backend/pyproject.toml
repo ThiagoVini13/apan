@@ -14,7 +14,14 @@ dependencies = [
     "structlog>=24.4.0",
     "redis>=5.2.0",
     "uuid-utils>=0.10.0",
+    "pwdlib[argon2]>=0.2.1",
+    "pyjwt>=2.10.0",
+    "typer>=0.15.0",
+    "email-validator>=2.2.0",
 ]
+
+[project.scripts]
+apan = "apan.cli:app"
 
 [dependency-groups]
 dev = [
@@ -103,12 +110,15 @@ forbidden_modules = ["apan.modules", "apan.main"]
 name = "module layers: router -> service -> repository -> models"
 type = "layers"
 containers = [
+    "apan.modules.audit",
+    "apan.modules.auth",
     "apan.modules.classes",
     "apan.modules.dashboard",
     "apan.modules.health",
     "apan.modules.roll_calls",
     "apan.modules.students",
     "apan.modules.subjects",
+    "apan.modules.users",
 ]
 layers = ["(router)", "(service)", "(repository)", "(models)"]
 

@@ -1,9 +1,6 @@
-from collections.abc import AsyncIterator
-
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
-    AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
@@ -31,10 +28,6 @@ class Database:
             expire_on_commit=False,
             autoflush=False,
         )
-
-    async def session(self) -> AsyncIterator[AsyncSession]:
-        async with self.sessionmaker() as session:
-            yield session
 
     async def ping(self) -> None:
         async with self.engine.connect() as connection:

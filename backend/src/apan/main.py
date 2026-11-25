@@ -12,18 +12,26 @@ from apan.core.constants import API_PREFIX, REQUEST_ID_HEADER
 from apan.core.database import Database
 from apan.core.error_handlers import register_error_handlers
 from apan.core.logging import configure_logging
+from apan.core.mail import SmtpMailer
 from apan.core.middleware import RequestContextMiddleware
+from apan.modules.auth.dependencies import CSRF_HEADER
+from apan.modules.auth.router import router as auth_router
 from apan.modules.classes.router import router as classes_router
 from apan.modules.dashboard.router import router as dashboard_router
 from apan.modules.health.router import router as health_router
 from apan.modules.roll_calls.router import router as roll_calls_router
 from apan.modules.students.router import router as students_router
 from apan.modules.subjects.router import router as subjects_router
+from apan.modules.users.router import router as users_router
 
 
 def _api_router() -> APIRouter:
     api = APIRouter(prefix=API_PREFIX)
     api.include_router(health_router)
+    api.include_router(auth_router)
+    api.include_router(users_router)
+    # Legacy in-memory modules: still public until each one moves to the database
+    # and gets role and scope checks.
     api.include_router(students_router)
     api.include_router(classes_router)
     api.include_router(roll_calls_router)
@@ -38,12 +46,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     database = Database(settings)
     redis = create_redis(settings)
+    mailer = SmtpMailer(settings)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         try:
             yield
         finally:
+            await mailer.drain()
             await redis.aclose()
             await database.dispose()
 
@@ -59,13 +69,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.database = database
     app.state.redis = redis
+    app.state.mailer = mailer
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", REQUEST_ID_HEADER],
+        allow_headers=["Authorization", "Content-Type", CSRF_HEADER, REQUEST_ID_HEADER],
         expose_headers=[REQUEST_ID_HEADER],
     )
     app.add_middleware(RequestContextMiddleware)

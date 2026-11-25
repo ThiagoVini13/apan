@@ -97,6 +97,34 @@ API: http://localhost:8000 · Docs: http://localhost:8000/docs · Health: `/api/
 | `make migrate` | `alembic upgrade head` |
 | `make revision m="..."` | nova migration com autogenerate |
 
+### Primeiro acesso (criar o administrador)
+
+O primeiro `admin` é criado pela linha de comando (nunca por migration ou seed):
+
+```bash
+# Docker (produção ou desenvolvimento)
+docker exec -it apan-backend apan create-admin        # ou apan-backend-dev
+# Local
+cd backend && uv run apan create-admin
+```
+
+Os demais usuários são criados pelo admin em `POST /api/v1/users`. A pessoa recebe
+um e-mail de convite com o link para definir a senha (em desenvolvimento, os e-mails
+ficam no Mailpit: http://localhost:8025).
+
+### Autenticação (resumo)
+
+| Endpoint | Função |
+|---|---|
+| `POST /api/v1/auth/login` | Devolve `accessToken` (15 min) e grava o refresh token em cookie `HttpOnly` |
+| `POST /api/v1/auth/refresh` | Troca o refresh token por um novo (rotação; reuso derruba a sessão) |
+| `POST /api/v1/auth/logout` | Encerra a sessão |
+| `GET /api/v1/auth/me` | Usuário logado e permissões |
+| `POST /api/v1/auth/password/change` \| `/forgot` \| `/reset` | Troca, pedido e redefinição de senha |
+
+`refresh` e `logout` exigem o cabeçalho `X-Requested-With: XMLHttpRequest` e uma
+`Origin` listada em `CORS_ORIGINS`.
+
 ### Frontend (React + TypeScript)
 
 **Pré-requisitos:** Node.js 18+
