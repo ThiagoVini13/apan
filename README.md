@@ -28,8 +28,9 @@ apan/
 └── .env.example
 ```
 
-> Os módulos `students`, `classes`, `roll-calls`, `subjects` e `dashboard` ainda usam
-> dados em memória (`core/store.py`) e serão migrados para o PostgreSQL módulo a módulo.
+> Os módulos `roll-calls` e `dashboard` ainda usam dados em memória (`core/store.py`)
+> e serão migrados para o PostgreSQL no PR de chamadas. Alunos, turmas, disciplinas,
+> anos letivos e matrículas já estão no banco e exigem login.
 
 ---
 
@@ -111,6 +112,28 @@ cd backend && uv run apan create-admin
 Os demais usuários são criados pelo admin em `POST /api/v1/users`. A pessoa recebe
 um e-mail de convite com o link para definir a senha (em desenvolvimento, os e-mails
 ficam no Mailpit: http://localhost:8025).
+
+### Dados de demonstração (desenvolvimento)
+
+Depois de criar o admin, `apan seed-demo` cria um ano letivo com bimestres e feriados,
+3 disciplinas, 3 turmas, 15 alunos fictícios com responsáveis e a conta
+`professora.demo@example.com` (vinculada a duas das turmas). O comando pede a senha da
+professora e não roda com `APP_ENV=production`.
+
+```bash
+docker exec -it apan-backend-dev apan seed-demo
+```
+
+### Quem pode o quê (cadastros)
+
+| Recurso | Admin | Professor |
+|---|---|---|
+| Anos letivos, bimestres, calendário, disciplinas | Tudo | Leitura |
+| Turmas e vínculo turma–disciplina–professor | Tudo | Leitura das próprias turmas |
+| Alunos e responsáveis | Tudo | Cadastrar nas próprias turmas; ver e editar os alunos delas |
+| Arquivar aluno, matricular, transferir, cancelar | Sim | Não (só leitura das matrículas das próprias turmas) |
+
+Recursos fora do escopo do professor respondem `404`.
 
 ### Autenticação (resumo)
 

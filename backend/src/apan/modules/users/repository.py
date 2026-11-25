@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from uuid import UUID
 
 from sqlalchemy import Select, func, or_, select
@@ -62,6 +63,11 @@ async def list_page(
         statement.order_by(User.full_name, User.id).offset(page.offset).limit(page.limit)
     )
     return list(rows.scalars()), total
+
+
+async def get_many(session: AsyncSession, ids: Iterable[UUID]) -> list[User]:
+    rows = await session.execute(select(User).where(User.id.in_(list(ids))))
+    return list(rows.scalars())
 
 
 def add(session: AsyncSession, user: User) -> None:

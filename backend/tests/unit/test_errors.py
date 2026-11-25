@@ -32,14 +32,25 @@ async def test_field_errors_are_listed(app: FastAPI, client: AsyncClient) -> Non
     assert body["fieldErrors"] == [{"field": "birthDate", "code": "date_in_future"}]
 
 
-async def test_request_validation_uses_camel_case_fields(client: AsyncClient) -> None:
-    response = await client.post("/api/v1/students", json={"fullName": "Ana", "unknown": 1})
+async def test_request_validation_uses_camel_case_fields(app: FastAPI, client: AsyncClient) -> None:
+
+    from apan.core.schemas import ApiInput
+
+    class Payload(ApiInput):
+        full_name: str
+        enrollment_number: str
+
+    @app.post("/validate")
+    async def validate(body: Payload) -> None:
+        return None
+
+    response = await client.post("/validate", json={"fullName": "Ana", "unknown": 1})
 
     assert response.status_code == 422
     body = response.json()
     assert body["code"] == "validation_error"
     fields = {error["field"] for error in body["fieldErrors"]}
-    assert {"enrollmentNumber", "classId", "unknown"} <= fields
+    assert fields == {"enrollmentNumber", "unknown"}
 
 
 async def test_unknown_route_returns_not_found_problem(client: AsyncClient) -> None:

@@ -1,4 +1,5 @@
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     async_sessionmaker,
@@ -35,3 +36,24 @@ class Database:
 
     async def dispose(self) -> None:
         await self.engine.dispose()
+
+
+FOREIGN_KEY_VIOLATION = "23503"
+UNIQUE_VIOLATION = "23505"
+
+
+def _cause(exc: IntegrityError) -> object:
+    return getattr(exc.orig, "__cause__", None)
+
+
+def violated_constraint(exc: IntegrityError) -> str | None:
+    name = getattr(_cause(exc), "constraint_name", None)
+    return str(name) if name else None
+
+
+def is_foreign_key_violation(exc: IntegrityError) -> bool:
+    return getattr(_cause(exc), "sqlstate", None) == FOREIGN_KEY_VIOLATION
+
+
+def is_unique_violation(exc: IntegrityError) -> bool:
+    return getattr(_cause(exc), "sqlstate", None) == UNIQUE_VIOLATION

@@ -18,6 +18,7 @@ dependencies = [
     "pyjwt>=2.10.0",
     "typer>=0.15.0",
     "email-validator>=2.2.0",
+    "tzdata>=2024.1",
 ]
 
 [project.scripts]
@@ -75,11 +76,8 @@ files = ["src", "tests", "migrations"]
 # Legacy in-memory modules: replaced one by one by the database-backed modules.
 module = [
     "apan.core.store",
-    "apan.modules.classes.*",
     "apan.modules.dashboard.*",
     "apan.modules.roll_calls.*",
-    "apan.modules.students.*",
-    "apan.modules.subjects.*",
 ]
 ignore_errors = true
 
@@ -114,8 +112,10 @@ containers = [
     "apan.modules.auth",
     "apan.modules.classes",
     "apan.modules.dashboard",
+    "apan.modules.enrollments",
     "apan.modules.health",
     "apan.modules.roll_calls",
+    "apan.modules.school_years",
     "apan.modules.students",
     "apan.modules.subjects",
     "apan.modules.users",

@@ -18,8 +18,10 @@ from apan.modules.auth.dependencies import CSRF_HEADER
 from apan.modules.auth.router import router as auth_router
 from apan.modules.classes.router import router as classes_router
 from apan.modules.dashboard.router import router as dashboard_router
+from apan.modules.enrollments.router import router as enrollments_router
 from apan.modules.health.router import router as health_router
 from apan.modules.roll_calls.router import router as roll_calls_router
+from apan.modules.school_years.router import router as school_years_router
 from apan.modules.students.router import router as students_router
 from apan.modules.subjects.router import router as subjects_router
 from apan.modules.users.router import router as users_router
@@ -30,13 +32,14 @@ def _api_router() -> APIRouter:
     api.include_router(health_router)
     api.include_router(auth_router)
     api.include_router(users_router)
-    # Legacy in-memory modules: still public until each one moves to the database
-    # and gets role and scope checks.
-    api.include_router(students_router)
+    api.include_router(school_years_router)
+    api.include_router(subjects_router)
     api.include_router(classes_router)
+    api.include_router(students_router)
+    api.include_router(enrollments_router)
+    # Legacy in-memory modules: still public until the roll calls PR replaces them.
     api.include_router(roll_calls_router)
     api.include_router(dashboard_router)
-    api.include_router(subjects_router)
     return api
 
 

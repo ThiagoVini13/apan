@@ -24,3 +24,14 @@ class Page[T](ApiModel):
     @classmethod
     def build(cls, items: list[T], total: int, params: PageParams) -> "Page[T]":
         return cls(items=items, total=total, page=params.page, page_size=params.page_size)
+
+
+class ItemList[T](ApiModel):
+    """Small, unpaginated sub-collections (terms, guardians, ...)."""
+
+    items: list[T]
+    total: int
+
+    @classmethod
+    def of(cls, items: list[T]) -> "ItemList[T]":
+        return cls(items=items, total=len(items))

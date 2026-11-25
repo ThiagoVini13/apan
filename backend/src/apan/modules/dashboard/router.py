@@ -6,9 +6,7 @@ from fastapi import APIRouter
 
 from apan.core.constants import MIN_ATTENDANCE_RATE
 from apan.core.store import store
-from apan.modules.classes.schemas import SchoolClassOut
-from apan.modules.dashboard.schemas import DashboardTodayOut
-from apan.modules.students.schemas import StudentOut
+from apan.modules.dashboard.schemas import DashboardTodayOut, SchoolClassOut, StudentOut
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

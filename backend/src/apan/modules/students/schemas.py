@@ -1,39 +1,77 @@
-"""Pydantic schemas for the students module."""
+from datetime import date, datetime
+from enum import StrEnum
+from typing import Annotated
+from uuid import UUID
 
-from datetime import date
+from pydantic import Field, StringConstraints
 
 from apan.core.schemas import ApiInput, ApiModel
 
+FullName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+Phone = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=30)]
 
-class StudentBase(ApiModel):
+
+class Relationship(StrEnum):
+    MOTHER = "mother"
+    FATHER = "father"
+    GRANDPARENT = "grandparent"
+    SIBLING = "sibling"
+    UNCLE_AUNT = "uncle_aunt"
+    LEGAL_GUARDIAN = "legal_guardian"
+    OTHER = "other"
+
+
+class GuardianRead(ApiModel):
+    id: UUID
     full_name: str
+    phone: str
+    relationship: Relationship
+    is_primary: bool
+
+
+class GuardianCreate(ApiInput):
+    full_name: FullName
+    phone: Phone
+    relationship: Relationship
+    is_primary: bool = False
+
+
+class GuardianUpdate(ApiInput):
+    full_name: FullName | None = None
+    phone: Phone | None = None
+    relationship: Relationship | None = None
+    is_primary: bool | None = None
+
+
+class StudentRead(ApiModel):
+    id: UUID
     enrollment_number: str
-    class_id: str
-    birth_date: date | None = None
-    is_active: bool = True
-
-
-class StudentOut(StudentBase):
-    id: str
-    attendance_rate: float | None = None  # percentage 0-100, computed on detail
-
-
-class StudentListOut(ApiModel):
-    items: list[StudentOut]
-    total: int
-
-
-class StudentCreateIn(ApiInput):
     full_name: str
-    enrollment_number: str
-    class_id: str
-    birth_date: date | None = None
-    is_active: bool = True
+    birth_date: date
+    archived_at: datetime | None
+    current_class_id: UUID | None = None
+    current_enrollment_id: UUID | None = None
 
 
-class StudentUpdateIn(ApiInput):
-    full_name: str | None = None
-    enrollment_number: str | None = None
-    class_id: str | None = None
+class StudentDetail(StudentRead):
+    guardians: list[GuardianRead]
+
+
+class StudentCreate(ApiInput):
+    full_name: FullName
+    birth_date: date
+    # Required for teachers (one of their classes); optional for admins.
+    class_id: UUID | None = None
+    enrolled_on: date | None = None
+    guardians: Annotated[list[GuardianCreate], Field(default_factory=list, max_length=5)]
+
+
+class StudentUpdate(ApiInput):
+    full_name: FullName | None = None
     birth_date: date | None = None
-    is_active: bool | None = None
+
+
+class StudentFilters(ApiModel):
+    q: str | None = None
+    class_id: UUID | None = None
+    include_archived: bool = False

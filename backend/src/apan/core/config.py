@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     app_env: Environment = Environment.DEVELOPMENT
     secret_key: SecretStr = SecretStr(DEV_SECRET_KEY)
     log_level: str = "INFO"
+    # Time zone that defines "today" for the school (lesson dates, default dates).
+    school_timezone: str = "America/Sao_Paulo"
 
     postgres_host: str = "localhost"
     postgres_port: int = 5432

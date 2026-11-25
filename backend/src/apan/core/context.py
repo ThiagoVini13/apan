@@ -34,3 +34,17 @@ class Actor:
     @property
     def is_admin(self) -> bool:
         return self.role is Role.ADMIN
+
+
+@dataclass(frozen=True, slots=True)
+class AccessScope:
+    """Classes an actor may reach. ``class_ids is None`` means unrestricted (admin)."""
+
+    class_ids: frozenset[UUID] | None
+
+    @property
+    def unrestricted(self) -> bool:
+        return self.class_ids is None
+
+    def allows(self, class_id: UUID) -> bool:
+        return self.class_ids is None or class_id in self.class_ids

@@ -60,3 +60,23 @@ def test_cli_reports_weak_password(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert result.exit_code == 1
     assert "password_too_common" in result.output
+
+
+async def test_seed_demo_builds_a_consistent_dataset(db_session: AsyncSession) -> None:
+    from sqlalchemy import func
+
+    from apan.modules.enrollments.models import Enrollment
+    from apan.modules.students.models import Student
+    from apan.seed import seed_demo
+
+    await auth.create_admin(
+        db_session, email="admin@example.com", full_name="Admin", password="a-strong-passphrase"
+    )
+
+    result = await seed_demo(db_session, "demo-teacher-passphrase")
+
+    students = await db_session.scalar(select(func.count()).select_from(Student))
+    active = await db_session.scalar(
+        select(func.count()).select_from(Enrollment).where(Enrollment.status == "active")
+    )
+    assert result.students == students == active == 15

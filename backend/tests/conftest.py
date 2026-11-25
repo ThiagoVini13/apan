@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from alembic import command
@@ -18,6 +19,9 @@ from sqlalchemy.ext.asyncio import (
 from apan.core.config import Environment, Settings
 from apan.core.mail import Mail
 from apan.main import create_app
+
+if TYPE_CHECKING:
+    from tests.factories.registries import Seed
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 UNREACHABLE_DATABASE_URL = "postgresql+asyncpg://apan:apan@127.0.0.1:1/apan"
@@ -177,6 +181,13 @@ async def integration_client(integration_settings: Settings) -> AsyncIterator[As
     """Real engine and pool (no transaction override), for infrastructure checks."""
     async for c in _client_for(create_app(integration_settings)):
         yield c
+
+
+@pytest.fixture
+async def seed(api: AsyncClient, db_session: AsyncSession) -> "Seed":
+    from tests.factories.registries import make_seed
+
+    return await make_seed(api, db_session)
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:

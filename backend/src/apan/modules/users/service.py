@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from datetime import datetime
 from uuid import UUID
 
@@ -57,6 +58,19 @@ async def find_by_email(
     return await repository.get_by_email(
         session, domain.normalize_email(email), for_update=for_update
     )
+
+
+async def full_names(session: AsyncSession, ids: Iterable[UUID]) -> dict[UUID, str]:
+    return {u.id: u.full_name for u in await repository.get_many(session, ids)}
+
+
+async def teachers_by_id(session: AsyncSession, ids: Iterable[UUID]) -> dict[UUID, str]:
+    """Active teachers among ``ids`` (id -> full name)."""
+    return {
+        u.id: u.full_name
+        for u in await repository.get_many(session, ids)
+        if u.role == Role.TEACHER and u.is_active
+    }
 
 
 # --------------------------------------------------------------------------- commands
