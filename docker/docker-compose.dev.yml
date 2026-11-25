@@ -1,27 +1,79 @@
+# Development stack with hot reload. Run from the repository root:
+#   docker compose -f docker/docker-compose.dev.yml up --build
+#
+# Frontend  http://localhost:5173
+# API       http://localhost:8000  (docs: /docs)
+# Mailpit   http://localhost:8025
+# Postgres and Redis are published on localhost for running tools from the host.
+
 services:
 
-  # Backend
+  db:
+    image: postgres:17-alpine
+    container_name: apan-db-dev
+    restart: unless-stopped
+    env_file: ../.env
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data
+    networks: [apan-network-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: apan-redis-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    networks: [apan-network-dev]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: apan-mailpit-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    networks: [apan-network-dev]
+
   backend:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-      target: builder
+      target: dev
     container_name: apan-backend-dev
     restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ../backend/app:/app/app
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn --factory apan.main:create_app --host 0.0.0.0 --port 8000
+             --reload --reload-dir src"
+    env_file: ../.env
     environment:
-      - PYTHONUNBUFFERED=1
-      - PYTHONDONTWRITEBYTECODE=1
-    env_file:
-      - ../.env
+      POSTGRES_HOST: db
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/migrations:/app/migrations
+      - ../backend/tests:/app/tests
     ports:
-      - "8000:8000"
-    networks:
-      - apan-network-dev
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [apan-network-dev]
 
-  # Frontend
   frontend:
     image: node:22-alpine
     container_name: apan-frontend-dev
@@ -33,13 +85,14 @@ services:
     environment:
       - VITE_API_URL=http://backend:8000
     ports:
-      - "5173:5173"
+      - "127.0.0.1:5173:5173"
     depends_on:
       - backend
-    networks:
-      - apan-network-dev
+    networks: [apan-network-dev]
+
+volumes:
+  pgdata-dev:
 
 networks:
   apan-network-dev:
     driver: bridge
-
