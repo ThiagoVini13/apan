@@ -1,4 +1,4 @@
-.PHONY: install dev lint format typecheck test test-unit migrate revision audit check
+.PHONY: install dev lint format typecheck test test-unit migrate revision audit openapi check
 
 install:
 	uv sync
@@ -29,6 +29,9 @@ migrate:
 
 revision:
 	uv run alembic revision --autogenerate -m "$(m)"
+
+openapi:
+	uv run python -m scripts.export_openapi
 
 audit:
 	uv run pip-audit

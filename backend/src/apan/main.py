@@ -14,6 +14,7 @@ from apan.core.error_handlers import register_error_handlers
 from apan.core.logging import configure_logging
 from apan.core.mail import SmtpMailer
 from apan.core.middleware import RequestContextMiddleware
+from apan.modules.audit.router import router as audit_router
 from apan.modules.auth.dependencies import CSRF_HEADER
 from apan.modules.auth.router import router as auth_router
 from apan.modules.classes.router import router as classes_router
@@ -41,6 +42,7 @@ def _api_router() -> APIRouter:
     api.include_router(roll_calls_router)
     api.include_router(reports_router)
     api.include_router(dashboard_router)
+    api.include_router(audit_router)
     return api
 
 
