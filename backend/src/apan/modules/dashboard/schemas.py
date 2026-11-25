@@ -1,34 +1,36 @@
-"""Legacy dashboard schemas (in-memory data), replaced in the roll calls PR."""
-
 from datetime import date
+from uuid import UUID
 
-from apan.core.schemas import ApiModel, Shift
-
-
-class SchoolClassOut(ApiModel):
-    id: str
-    name: str
-    grade: str
-    section: str
-    shift: Shift
-    year: int
-    student_count: int = 0
+from apan.core.schemas import ApiModel
 
 
-class StudentOut(ApiModel):
-    id: str
+class PendingRollCall(ApiModel):
+    class_id: UUID
+    class_name: str
+    subject_id: UUID
+    subject_name: str
+    teacher_id: UUID
+    teacher_name: str
+
+
+class AtRiskStudent(ApiModel):
+    student_id: UUID
     full_name: str
-    enrollment_number: str
-    class_id: str
-    birth_date: date | None = None
-    is_active: bool = True
-    attendance_rate: float | None = None
+    class_id: UUID
+    class_name: str
+    attendance_rate: float
 
 
-class DashboardTodayOut(ApiModel):
-    total_students: int
+class DashboardToday(ApiModel):
+    date: date
+    school_year_id: UUID | None
+    school_year_name: str | None
+    is_school_day: bool
     total_classes: int
-    roll_calls_completed: int
-    presence_rate: float
-    classes_with_pending_roll_call: list[SchoolClassOut]
-    low_attendance_students: list[StudentOut]
+    total_students: int
+    roll_calls_expected: int
+    roll_calls_done: int
+    presence_rate_today: float | None
+    presence_rate_last_30_days: float | None
+    pending_roll_calls: list[PendingRollCall]
+    low_attendance_students: list[AtRiskStudent]

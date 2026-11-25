@@ -20,6 +20,7 @@ from apan.modules.classes.router import router as classes_router
 from apan.modules.dashboard.router import router as dashboard_router
 from apan.modules.enrollments.router import router as enrollments_router
 from apan.modules.health.router import router as health_router
+from apan.modules.reports.router import router as reports_router
 from apan.modules.roll_calls.router import router as roll_calls_router
 from apan.modules.school_years.router import router as school_years_router
 from apan.modules.students.router import router as students_router
@@ -37,8 +38,8 @@ def _api_router() -> APIRouter:
     api.include_router(classes_router)
     api.include_router(students_router)
     api.include_router(enrollments_router)
-    # Legacy in-memory modules: still public until the roll calls PR replaces them.
     api.include_router(roll_calls_router)
+    api.include_router(reports_router)
     api.include_router(dashboard_router)
     return api
 

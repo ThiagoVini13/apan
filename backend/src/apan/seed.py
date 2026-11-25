@@ -1,13 +1,13 @@
 """Synthetic demo data for development (never real people: LGPD)."""
 
 from dataclasses import dataclass
-from datetime import date
-from uuid import uuid4
+from datetime import date, timedelta
+from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apan.core import security
-from apan.core.clock import local_today
+from apan.core import clock, security
+from apan.core.config import get_settings
 from apan.core.context import Actor, ClientInfo, Role
 from apan.core.errors import ConflictError
 from apan.core.pagination import PageParams
@@ -18,6 +18,8 @@ from apan.modules.classes.schemas import (
     SubjectTeacherAssignment,
     SubjectTeachersReplace,
 )
+from apan.modules.roll_calls import service as roll_calls
+from apan.modules.roll_calls.schemas import AttendanceIn, AttendanceStatus, RollCallUpsert
 from apan.modules.school_years import service as school_years
 from apan.modules.school_years.schemas import (
     CalendarDayCreate,
@@ -60,11 +62,16 @@ CLASSES = [
 ]
 
 
+HISTORY_DAYS = 14
+CHRONIC_ABSENTEE = 3
+
+
 @dataclass(frozen=True)
 class SeedResult:
     school_year: str
     teacher_email: str
     students: int
+    roll_calls: int
 
 
 async def _admin_actor(session: AsyncSession) -> Actor:
@@ -78,7 +85,7 @@ async def _admin_actor(session: AsyncSession) -> Actor:
 
 async def seed_demo(session: AsyncSession, teacher_password: str) -> SeedResult:
     actor = await _admin_actor(session)
-    year_number = local_today().year
+    year_number = clock.local_today().year
 
     year = await school_years.create_year(
         session,
@@ -142,6 +149,7 @@ async def seed_demo(session: AsyncSession, teacher_password: str) -> SeedResult:
         await session.commit()
 
     count = 0
+    lessons = 0
     for index, (name, grade, shift, names, birth_year) in enumerate(CLASSES):
         school_class = await classes.create_class(
             session,
@@ -174,9 +182,10 @@ async def seed_demo(session: AsyncSession, teacher_password: str) -> SeedResult:
                 ),
                 CLIENT,
             )
+        roster: list[UUID] = []
         for offset, full_name in enumerate(names):
             surname = full_name.split()[-1]
-            await students.create_student(
+            created = await students.create_student(
                 session,
                 actor,
                 StudentCreate(
@@ -194,6 +203,62 @@ async def seed_demo(session: AsyncSession, teacher_password: str) -> SeedResult:
                 ),
                 CLIENT,
             )
+            roster.append(created.id)
             count += 1
+        lesson_subjects = (
+            [subject_ids["MAT"], subject_ids["POR"]] if index < 2 else [subject_ids["MAT"]]
+        )
+        lessons += await _roll_call_history(
+            session, actor, year.id, school_class.id, lesson_subjects, roster
+        )
 
-    return SeedResult(school_year=year.name, teacher_email=TEACHER_EMAIL, students=count)
+    return SeedResult(
+        school_year=year.name, teacher_email=TEACHER_EMAIL, students=count, roll_calls=lessons
+    )
+
+
+async def _roll_call_history(
+    session: AsyncSession,
+    actor: Actor,
+    year_id: UUID,
+    class_id: UUID,
+    subject_ids: list[UUID],
+    roster: list[UUID],
+) -> int:
+    """Two weeks of past lessons (today stays pending for the dashboard)."""
+    today = clock.local_today()
+    days = await school_years.school_days(
+        session, year_id, today - timedelta(days=HISTORY_DAYS), today - timedelta(days=1)
+    )
+    settings = get_settings()
+    taken = 0
+    for day in days:
+        for subject_id in subject_ids:
+            marks = [
+                AttendanceIn(student_id=student_id, status=_demo_status(position, day))
+                for position, student_id in enumerate(roster)
+            ]
+            await roll_calls.upsert(
+                session,
+                settings,
+                actor,
+                RollCallUpsert(
+                    class_id=class_id,
+                    subject_id=subject_id,
+                    lesson_date=day,
+                    notes="Aula de demonstração.",
+                    attendances=marks,
+                ),
+                CLIENT,
+            )
+            taken += 1
+    return taken
+
+
+def _demo_status(position: int, day: date) -> AttendanceStatus:
+    """Deterministic absences; the fourth student of each class is often absent."""
+    if position == CHRONIC_ABSENTEE:
+        absent = day.toordinal() % 3 != 0
+    else:
+        absent = (day.toordinal() + position * 3) % 7 == 0
+    return AttendanceStatus.ABSENT if absent else AttendanceStatus.PRESENT

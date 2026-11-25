@@ -65,7 +65,8 @@ async def _seed_demo(teacher_password: str) -> str:
     finally:
         await database.dispose()
     return (
-        f"School year '{result.school_year}' with {result.students} students. "
+        f"School year '{result.school_year}' with {result.students} students and "
+        f"{result.roll_calls} roll calls. "
         f"Demo teacher: {result.teacher_email}"
     )
 

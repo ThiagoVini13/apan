@@ -16,6 +16,11 @@ async def get(
     return (await session.execute(statement)).scalar_one_or_none()
 
 
+async def get_many(session: AsyncSession, ids: list[UUID]) -> list[Student]:
+    rows = await session.execute(select(Student).where(Student.id.in_(ids)))
+    return list(rows.scalars())
+
+
 async def is_within(session: AsyncSession, student_id: UUID, allowed: Select[UUID]) -> bool:
     statement = select(Student.id).where(Student.id == student_id, Student.id.in_(allowed))
     return (await session.execute(statement)).first() is not None

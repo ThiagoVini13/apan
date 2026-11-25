@@ -6,6 +6,7 @@ def load_models() -> None:
     import apan.modules.auth.models
     import apan.modules.classes.models
     import apan.modules.enrollments.models
+    import apan.modules.roll_calls.models
     import apan.modules.school_years.models
     import apan.modules.students.models
     import apan.modules.subjects.models

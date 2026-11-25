@@ -134,5 +134,26 @@ async def replace_assignments(
     )
 
 
+async def active_in_year(
+    session: AsyncSession, school_year_id: UUID, scope: AccessScope
+) -> list[SchoolClass]:
+    statement = select(SchoolClass).where(
+        SchoolClass.school_year_id == school_year_id, SchoolClass.is_active.is_(True)
+    )
+    if scope.class_ids is not None:
+        statement = statement.where(SchoolClass.id.in_(scope.class_ids))
+    rows = await session.execute(statement.order_by(SchoolClass.name))
+    return list(rows.scalars())
+
+
+async def assignments_for_classes(
+    session: AsyncSession, class_ids: Iterable[UUID], teacher_id: UUID | None
+) -> list[ClassSubjectTeacher]:
+    statement = select(ClassSubjectTeacher).where(ClassSubjectTeacher.class_id.in_(list(class_ids)))
+    if teacher_id is not None:
+        statement = statement.where(ClassSubjectTeacher.teacher_id == teacher_id)
+    return list((await session.execute(statement)).scalars())
+
+
 def add(session: AsyncSession, school_class: SchoolClass) -> None:
     session.add(school_class)

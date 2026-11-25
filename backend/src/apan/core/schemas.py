@@ -1,6 +1,4 @@
-"""Core Pydantic base models and shared enums for the APAN API."""
-
-from enum import StrEnum
+"""Core Pydantic base models for the APAN API."""
 
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
@@ -25,14 +23,3 @@ class ApiInput(ApiModel):
         from_attributes=True,
         extra="forbid",
     )
-
-
-class AttendanceStatus(StrEnum):
-    PRESENT = "present"
-    ABSENT = "absent"
-
-
-class Shift(StrEnum):
-    MORNING = "morning"
-    AFTERNOON = "afternoon"
-    EVENING = "evening"

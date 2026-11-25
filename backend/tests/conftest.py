@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator, Iterator
+from datetime import date
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -28,6 +29,18 @@ UNREACHABLE_DATABASE_URL = "postgresql+asyncpg://apan:apan@127.0.0.1:1/apan"
 UNREACHABLE_REDIS_URL = "redis://127.0.0.1:1/0"
 TEST_ORIGIN = "http://test"
 TEST_SECRET_KEY = "test-secret-key-with-more-than-32-characters"
+
+
+# Every test runs on the same "today" (a Tuesday, inside the 2026 school year).
+FROZEN_TODAY = date(2026, 11, 24)
+
+
+@pytest.fixture(autouse=True)
+def frozen_today(monkeypatch: pytest.MonkeyPatch) -> date:
+    from apan.core import clock
+
+    monkeypatch.setattr(clock, "local_today", lambda: FROZEN_TODAY)
+    return FROZEN_TODAY
 
 
 def make_settings(**overrides: object) -> Settings:

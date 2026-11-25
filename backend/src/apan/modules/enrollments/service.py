@@ -11,7 +11,7 @@ from uuid import UUID
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apan.core.clock import local_today
+from apan.core import clock
 from apan.core.context import AccessScope, Actor, ClientInfo
 from apan.core.errors import ConflictError, FieldError, NotFoundError, ValidationError
 from apan.core.pagination import Page, PageParams
@@ -66,7 +66,7 @@ async def _date_in_year(
     if year is None:
         raise ValidationError(code="school_year_not_found")
     if on is None:
-        on = min(max(local_today(), year.starts_on), year.ends_on)
+        on = min(max(clock.local_today(), year.starts_on), year.ends_on)
     if not year.starts_on <= on <= year.ends_on:
         raise ValidationError(
             code="date_outside_school_year",
@@ -121,6 +121,15 @@ async def current_by_student(
     for enrollment in await repository.active_for_students(session, student_ids):
         current.setdefault(enrollment.student_id, _read(enrollment))
     return current
+
+
+async def count_active(session: AsyncSession, class_ids: Iterable[UUID]) -> int:
+    return await repository.count_active(session, class_ids)
+
+
+async def student_ids_on(session: AsyncSession, class_id: UUID, on: date) -> list[UUID]:
+    """The class roster on a given day: enrollments whose period covers ``on``."""
+    return await repository.student_ids_on(session, class_id, on)
 
 
 async def end_active(session: AsyncSession, student_id: UUID, on: date) -> None:

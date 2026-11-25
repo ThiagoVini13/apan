@@ -29,6 +29,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     # Time zone that defines "today" for the school (lesson dates, default dates).
     school_timezone: str = "America/Sao_Paulo"
+    # Days after the lesson during which a teacher may still create/edit the roll call.
+    roll_call_edit_window_days: int = Field(default=7, ge=0)
 
     postgres_host: str = "localhost"
     postgres_port: int = 5432

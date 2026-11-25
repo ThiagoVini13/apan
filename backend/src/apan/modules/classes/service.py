@@ -269,6 +269,27 @@ async def replace_subject_teachers(
     return await list_subject_teachers(session, actor, class_id)
 
 
+async def active_classes_in_year(
+    session: AsyncSession, actor: Actor, school_year_id: UUID
+) -> list[ClassInfo]:
+    scope = await scope_for(session, actor)
+    return [
+        ClassInfo.model_validate(c)
+        for c in await repository.active_in_year(session, school_year_id, scope)
+    ]
+
+
+async def lesson_assignments(
+    session: AsyncSession, actor: Actor, class_ids: Iterable[UUID]
+) -> list[tuple[UUID, UUID, UUID]]:
+    """(class_id, subject_id, teacher_id) for the given classes; teachers see only their own."""
+    teacher_id = None if actor.is_admin else actor.user_id
+    return [
+        (a.class_id, a.subject_id, a.teacher_id)
+        for a in await repository.assignments_for_classes(session, class_ids, teacher_id)
+    ]
+
+
 async def teacher_subject_ids(
     session: AsyncSession, class_id: UUID, teacher_id: UUID
 ) -> frozenset[UUID]:

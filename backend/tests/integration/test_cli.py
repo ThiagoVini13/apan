@@ -80,3 +80,5 @@ async def test_seed_demo_builds_a_consistent_dataset(db_session: AsyncSession) -
         select(func.count()).select_from(Enrollment).where(Enrollment.status == "active")
     )
     assert result.students == students == active == 15
+    # 9 school days between 2026-11-10 and 2026-11-23, 5 lessons per day (2 + 2 + 1 subjects).
+    assert result.roll_calls == 9 * 5

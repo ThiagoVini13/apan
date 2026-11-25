@@ -19,6 +19,7 @@ dependencies = [
     "typer>=0.15.0",
     "email-validator>=2.2.0",
     "tzdata>=2024.1",
+    "xlsxwriter>=3.2.0",
 ]
 
 [project.scripts]
@@ -73,16 +74,7 @@ mypy_path = "src"
 files = ["src", "tests", "migrations"]
 
 [[tool.mypy.overrides]]
-# Legacy in-memory modules: replaced one by one by the database-backed modules.
-module = [
-    "apan.core.store",
-    "apan.modules.dashboard.*",
-    "apan.modules.roll_calls.*",
-]
-ignore_errors = true
-
-[[tool.mypy.overrides]]
-module = ["testcontainers.*"]
+module = ["testcontainers.*", "xlsxwriter.*"]
 ignore_missing_imports = true
 
 # --------------------------------------------------------------------------- pytest
@@ -114,6 +106,7 @@ containers = [
     "apan.modules.dashboard",
     "apan.modules.enrollments",
     "apan.modules.health",
+    "apan.modules.reports",
     "apan.modules.roll_calls",
     "apan.modules.school_years",
     "apan.modules.students",

@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from datetime import date
 from uuid import UUID
 
 from sqlalchemy import Select, func, select
@@ -48,6 +49,27 @@ async def count_active_in_class(session: AsyncSession, class_id: UUID) -> int:
         Enrollment.class_id == class_id, Enrollment.status == ACTIVE
     )
     return (await session.execute(statement)).scalar_one()
+
+
+async def count_active(session: AsyncSession, class_ids: Iterable[UUID]) -> int:
+    statement = select(func.count()).where(
+        Enrollment.class_id.in_(list(class_ids)), Enrollment.status == ACTIVE
+    )
+    return (await session.execute(statement)).scalar_one()
+
+
+async def student_ids_on(session: AsyncSession, class_id: UUID, on: date) -> list[UUID]:
+    """Students whose enrollment in the class covers ``on`` (any status)."""
+    rows = await session.execute(
+        select(Enrollment.student_id)
+        .where(
+            Enrollment.class_id == class_id,
+            Enrollment.starts_on <= on,
+            (Enrollment.ends_on.is_(None)) | (Enrollment.ends_on >= on),
+        )
+        .distinct()
+    )
+    return list(rows.scalars())
 
 
 def active_student_ids(class_ids: Iterable[UUID]) -> Select[UUID]:

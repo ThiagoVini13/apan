@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import Select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apan.core.clock import local_today, now
+from apan.core import clock
 from apan.core.context import Actor, ClientInfo
 from apan.core.errors import ConflictError, FieldError, NotFoundError, ValidationError
 from apan.core.pagination import ItemList, Page, PageParams
@@ -73,7 +73,7 @@ async def _accessible(
 
 
 def _check_birth_date(birth_date: date, field: str = "birthDate") -> None:
-    problem = domain.birth_date_problem(birth_date, local_today())
+    problem = domain.birth_date_problem(birth_date, clock.local_today())
     if problem:
         raise ValidationError(code=problem, field_errors=[FieldError(field, problem)])
 
@@ -91,6 +91,16 @@ def _guardian_required() -> ConflictError:
     return ConflictError(
         code="guardian_required", field_errors=[FieldError("guardians", "guardian_required")]
     )
+
+
+# --------------------------------------------------------------------------- public helpers
+
+
+async def find_many(session: AsyncSession, ids: list[UUID]) -> dict[UUID, StudentRead]:
+    """Students by id (no scope check: callers already scoped the ids)."""
+    if not ids:
+        return {}
+    return {s.id: _read(s, None) for s in await repository.get_many(session, ids)}
 
 
 # --------------------------------------------------------------------------- students
@@ -166,7 +176,7 @@ async def create_student(
         raise ValidationError(
             code="class_required", field_errors=[FieldError("classId", "class_required")]
         )
-    if domain.is_minor(data.birth_date, local_today()) and not data.guardians:
+    if domain.is_minor(data.birth_date, clock.local_today()) and not data.guardians:
         raise ValidationError(
             code="guardian_required", field_errors=[FieldError("guardians", "guardian_required")]
         )
@@ -176,7 +186,7 @@ async def create_student(
 
     sequence = await repository.next_enrollment_sequence(session)
     student = Student(
-        enrollment_number=domain.enrollment_number(local_today().year, sequence),
+        enrollment_number=domain.enrollment_number(clock.local_today().year, sequence),
         full_name=data.full_name,
         birth_date=data.birth_date,
     )
@@ -213,9 +223,9 @@ async def update_student(
         raise ConflictError(code="student_archived")
     if data.birth_date is not None:
         _check_birth_date(data.birth_date)
-        if domain.is_minor(data.birth_date, local_today()) and not await repository.list_guardians(
-            session, student.id
-        ):
+        if domain.is_minor(
+            data.birth_date, clock.local_today()
+        ) and not await repository.list_guardians(session, student.id):
             raise _guardian_required()
         student.birth_date = data.birth_date
     if data.full_name is not None:
@@ -239,8 +249,8 @@ async def archive_student(
 ) -> StudentDetail:
     student = await _accessible(session, actor, student_id, for_update=True)
     if student.archived_at is None:
-        student.archived_at = now()
-        await enrollments.end_active(session, student.id, local_today())
+        student.archived_at = clock.now()
+        await enrollments.end_active(session, student.id, clock.local_today())
         audit.record(
             session,
             "students.archived",
@@ -376,7 +386,7 @@ async def delete_guardian(
     others = [
         g for g in await repository.list_guardians(session, student.id) if g.id != guardian.id
     ]
-    if not others and domain.is_minor(student.birth_date, local_today()):
+    if not others and domain.is_minor(student.birth_date, clock.local_today()):
         raise _guardian_required()
     await repository.delete(session, guardian)
     await session.flush()

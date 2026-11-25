@@ -28,9 +28,8 @@ apan/
 └── .env.example
 ```
 
-> Os módulos `roll-calls` e `dashboard` ainda usam dados em memória (`core/store.py`)
-> e serão migrados para o PostgreSQL no PR de chamadas. Alunos, turmas, disciplinas,
-> anos letivos e matrículas já estão no banco e exigem login.
+> Todos os módulos usam o PostgreSQL e exigem login. O frontend ainda chama a API
+> antiga sem autenticação e será atualizado no próximo PR.
 
 ---
 
@@ -134,6 +133,22 @@ docker exec -it apan-backend-dev apan seed-demo
 | Arquivar aluno, matricular, transferir, cancelar | Sim | Não (só leitura das matrículas das próprias turmas) |
 
 Recursos fora do escopo do professor respondem `404`.
+
+### Chamada, relatórios e exportação
+
+| Endpoint | Função |
+|---|---|
+| `GET /api/v1/roll-calls/sheet?classId&subjectId&date` | Alunos matriculados na data da aula, marcações já salvas e se ainda pode editar |
+| `PUT /api/v1/roll-calls` | Salva a chamada (turma + disciplina + data) com anotações de até 1000 caracteres; reenviar é seguro |
+| `GET /api/v1/reports/attendance/students?from&to[&classId&subjectId&studentId]` | Presenças, faltas e % por aluno no período |
+| `GET /api/v1/reports/attendance/summary` · `/by-class` · `/low-attendance` | Totais, por turma e alunos abaixo de 75% |
+| `GET /api/v1/reports/attendance/export?format=xlsx\|csv&from&to` | Planilha (XLSX com abas Resumo, Por aluno, Por turma, Aulas e Registros; CSV com `;` para o Excel) |
+| `GET /api/v1/dashboard/today` | Chamadas pendentes de hoje, presença recente e alunos em risco |
+
+Regras da chamada: só em dias letivos (fins de semana e feriados do calendário ficam de
+fora, dias letivos extras entram), nunca no futuro, apenas com os alunos matriculados na
+data. O professor registra só as disciplinas que leciona na turma, até
+`ROLL_CALL_EDIT_WINDOW_DAYS` dias depois da aula (padrão 7); o admin pode sempre.
 
 ### Autenticação (resumo)
 
